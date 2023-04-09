@@ -13,7 +13,7 @@ supports up to 256*16 bit ROM, and 256*8 bit RAM.
 See [T3LC.md](doc/T3LC.md).
 
 The actual CPU is implemented as a LogiSim evolution circuit, in the
-file [t3lc.circ](doc/t3lc.circ)
+file [t3lc.circ](t3lc.circ)
 
 
 

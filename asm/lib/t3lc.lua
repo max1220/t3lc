@@ -6,7 +6,7 @@
 
 -- 4 bits to select source of the DATA bus
 DATA_SOURCES = {
-	REG_A=0, REG_B=1, REG_I=2, REG_I=3,
+	REG_A=0, REG_B=1, REG_I=2, REG_J=3,
 	POP=4, TOS=5, ALU=6, RAM=7,
 	REG_IMM=8, IMM_0=9, IMM_1=10, IMM_2=11,
 	IMM_4=12, IMM_8=13, IMM_16=14, IMM_128=15

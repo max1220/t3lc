@@ -7,110 +7,108 @@
 ## Specs
 
 The t3lc is a simple 8/16-bit CPU.
- * 4 8-bit registers(REG_A, REG_B, REG_I, REG_J)
- * 16-bit program counter(PC)
- * 16-bit counter for accessing DROM
- * bi-directional 8-bit bus called DATA.
- * uni-directional 16-bit bus called ADDR.
-  - BUS always has value of REG_I and REG_J
- * up to 128K bytes of ROM
-  - 64K IROM
-  - 64K DROM
- * up to 128K bytes of RAM
-  - 64K RAM0
-  - 64K RAM1
+ * 5 8-bit registers(REG_A, REG_B, REG_I, REG_J, REG_IMM)
+ * single 8-bit bi-directional bus called DATA.
+ * up to 64K of ROM(16-bit address)
+ * up to 64K of RAM(16-bit address)
 
 The version described in this document is implemented
 as a LogiSim-evolution circuit in the file t3lc.circ.
 
 
 
-## Registers(REG_A, REG_B, REG_I, REG_J)
+## Registers(REG_A, REG_B, REG_I, REG_J, REG_IMM)
 
-All registers are 8-bit, and can be loaded from or stored to via the
-DATA bus.
+All registers are 8-bit.
 
- * REG_A
-  - first operand in ALU
- * REG_B
-  - second operand in ALU
- * REG_I
-  - source on ADDR bus(lower byte)
- * REG_J
-  - source on ADDR bus(higher byte)
-  - upper 3 bits are ALU operation
+The registers REG_A, REG_B, REG_I, REG_J can be
+loaded from or stored to via the DATA bus.
 
+The registers REG_I, REG_J form the RAM address,
+and the address loaded into PC to form the ROM address.
+
+Bits 4,5,6 from REG_I are also used to form op-code for the ALU.
+
+The special register REG_IMM can only
+store a 7-bit value directly from an op-code.
 
 
 ## Program counter(CNT_PC)
 
- * 16-bit program counter
- * points to memory in IROM
- * loaded from ADDR bus
+The 16-bit program counter is automatically incremented every clock cycle.
+It's output is used as the ROM address.
 
-
-
-## DROM counter(CNT_DROM)
-
- * 16-bit DROM address
- * points to memory in DROM
- * auto-incremented on DROM read
- * loaded from ADDR bus
+It can load a value from the registers REG_I and REG_J.
 
 
 
 ## DATA Bus
 
 Each clock cycle, the connections to the DATA bus are re-configured
-according to an instruction fetched from IROM.
+according to the current instruction from ROM.
+
 Only a single source and a single target can be enabled at a time.
 
 DATA bus sources:
+
  * REG_A
  * REG_B
  * REG_I
  * REG_J
+ * POP
+ * TOS
  * ALU
- * DROM
- * RAM0_READ
- * RAM1_READ
+ * RAM
+ * REG_IMM
+ * IMM_0
+ * IMM_1
+ * IMM_2
+ * IMM_4
+ * IMM_8
+ * IMM_16
+ * IMM_128
 
 DATA bus targets:
  * REG_A
  * REG_B
  * REG_I
  * REG_J
- * (CNT_PC`*`)
- * (CNT_DROM`*`)
- * RAM0_WRITE
- * RAM1_WRITE
+ * PC*
+ * PUSH
+ * SP
+ * RAM*
 
-`*` These values actually ignore the value on the DATA bus, and use the
-value on the ADDR bus(see below).
+`*` These values use the registers REG_I and REG_J to form an address.
 
-
-## ADDR Bus
 
 
 ### Memory
 
-There are 3 types of memory: IROM, DROM, and RAM.
-All memory is byte-based and accessed using a 16-bit address from the ADDR bus(REG_I and REG_J).
- - IROM can only be loaded as an instruction(execute-only),
- - DROM can be a source on the DATA bus(read-only)
- - RAM can be a source or a target on the DATA bus(read-write)
+There are two types of memory: ROM and RAM.
+All memory is byte-based and accessed using a 16-bit address.
 
-When an op-code reads from RAM:
- - RAM0_READ or RAM1_READ is raised
- - RAM0 or RAM1 becomes a source on the DATA bus,
-   providing the value of the RAM at the address on the ADDR bus
- - CPU performs operation on value on DATA bus(e.g. store in register)
+The address for the ROM is the output of CNT_PC, and can be loaded
+from the registers REG_I, REG_J.
 
-When an op-code writes to RAM:
- - CPU becomes source on the DATA bus,
-   providing the value to write to the RAM
- - RAM0_WRITE or RAM1_WRITE is raised
- - RAM writes the value on the DATA bus at the address on the ADDR bus
+The address for the RAM is the output of the registers REG_I and REG_J.
+
+This way, the t3lc can address up to 64K of ROM and RAM.
+
+
+
+### Stack
+
+A stack is provided on the DATA bus. The stack size is 256 bytes.
+The stack has the following functions:
+
+ * push
+   - read the value on the DATA bus, increment SP
+ * pop
+   - write TOS on the DATA bus, decrement SP
+ * write_sp
+   - Copy the value on the DATA bus to SP
+ * tos
+   - write TOS on the DATA bus
 
 
 
@@ -118,38 +116,63 @@ When an op-code writes to RAM:
 
 The 8-bit ALU can be configured to be a source on the DATA bus.
 It provides the result of OP(REG_A, REG_B),
-where OP is is determined by the highest 3 bits on the ADDR bus.
+where OP is determined by bits 4,5,6 from REG_I.
 
-```
-OP=000: REG_A + REG_B
-OP=001: REG_A & REG_B
-OP=010: REG_A | REG_B
-OP=011: !REG_A
-OP=100: REG_A << REG_B
-OP=101: REG_A > REG_B
-OP=110: REG_A == REG_B
-OP=111: 0
-```
+| Bits | Result
+| ---- | -----
+|  000 | REG_A + REG_B
+|  001 | REG_A & REG_B
+|  010 | REG_A | REG_B
+|  011 | !REG_A
+|  100 | REG_A << REG_B
+|  101 | REG_A * REG_B
+|  110 | REG_A > REG_B
+|  111 | REG_A == REG_B
 
 
 
 ### Instructions
 
-The supported instructions are best understood as configuring the
-DATA bus.
-Each 8-bit instruction is split into two nibbles:
-The lower nibble configures the source of the DATA bus,
-and the higher nibble configures the target of the DATA bus.
+The instructions are best understood as configuring the DATA bus.
 
-| Bit  | Name
+Each instruction is 8 bits.
+
+The first 4 bits(bits 0-3) determine the target of the DATA bus:
+
+| Bits | Name
 | ---- | -----
-|    0 | READ_SEL0
-|    1 | READ_SEL1
-|    2 | READ_SEL2
+| 0000 | REG_A
+| 0001 | REG_B
+| 0010 | REG_I
+| 0011 | REG_J
+| 0100 | POP
+| 0101 | TOS
+| 0110 | ALU
+| 0111 | RAM
+| 1000 | REG_IMM
+| 1001 | IMM_0
+| 1010 | IMM_1
+| 1011 | IMM_2
+| 1100 | IMM_4
+| 1101 | IMM_8
+| 1110 | IMM_16
+| 1111 | IMM_128
 
-| Bit  | Name
+The next 3 bits(bits 4-6) determine the source of the DATA bus:
+
+| Bits | Name
 | ---- | -----
-|    4 | WRITE_SEL0
-|    5 | WRITE_SEL1
-|    6 | WRITE_SEL2
+|  000 | REG_A
+|  001 | REG_B
+|  010 | REG_I
+|  011 | REG_J
+|  100 | PC
+|  101 | PUSH
+|  110 | SP
+|  111 | RAM
 
+
+The last bit(bit 7) is special:
+
+If set, the DATA bus is not used.
+Instead, the lower 6 bits are loaded into the REG_IMM register.
