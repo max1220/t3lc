@@ -8,7 +8,7 @@
 
 The t3lc is a simple 8/16-bit CPU.
  * 5 8-bit registers(REG_A, REG_B, REG_I, REG_J, REG_IMM)
- * single 8-bit bi-directional bus called DATA.
+ * single 8-bit bus called DATA.
  * up to 64K of ROM(16-bit address)
  * up to 64K of RAM(16-bit address)
 
@@ -170,7 +170,6 @@ The next 3 bits(bits 4-6) determine the source of the DATA bus:
 |  101 | PUSH
 |  110 | SP
 |  111 | RAM
-
 
 The last bit(bit 7) is special:
 
