@@ -2,133 +2,159 @@
 
 *Tiny Transport Triggered Logic CPU(t3lc)*
 
-
-
-## Specs
-
-The t3lc is a simple 8/16-bit CPU.
- * 5 8-bit registers(REG_A, REG_B, REG_I, REG_J, REG_IMM)
- * single 8-bit bus called DATA.
- * up to 64K of ROM(16-bit address)
- * up to 64K of RAM(16-bit address)
-
-The version described in this document is implemented
-as a LogiSim-evolution circuit in the file t3lc.circ.
-
-
-
-## Registers(REG_A, REG_B, REG_I, REG_J, REG_IMM)
-
-All registers are 8-bit.
-
-The registers REG_A, REG_B, REG_I, REG_J can be
-loaded from or stored to via the DATA bus.
-
-The registers REG_I, REG_J form the RAM address,
-and the address loaded into PC to form the ROM address.
-
-Bits 4,5,6 from REG_I are also used to form op-code for the ALU.
-
-The special register REG_IMM can only
-store a 7-bit value directly from an op-code.
-
-
-## Program counter(CNT_PC)
-
-The 16-bit program counter is automatically incremented every clock cycle.
-It's output is used as the ROM address.
-
-It can load a value from the registers REG_I and REG_J.
+The t3lc is a simple transport-triggered CPU.
+ * 8-bit instructions(4-bit source + 3-bit target or 7-bit immediate value)
+ * 4 8-bit registers + 7-bit last immediate-value register
+ * 8-bit bi-directional DATA bus
+ * 8-bit ALU with 8-bit ACC register(15 ops + read ACC)
+ * 256-byte stack
+ * 2 peripheral write ports
 
 
 
 ## DATA Bus
 
-Each clock cycle, the connections to the DATA bus are re-configured
-according to the current instruction from ROM.
+Since this is a TTA-like design, the DATA bus is the key to understanding
+the operation of the t3lc CPU.
+
+Each clock cycle, the source and target connections to the DATA bus are
+enabled/disabled according to the current instruction.
 
 Only a single source and a single target can be enabled at a time.
 
-DATA bus sources:
+
+
+### DATA bus sources
 
  * REG_A
  * REG_B
  * REG_I
  * REG_J
- * POP
  * TOS
  * ALU
- * RAM
  * REG_IMM
- * IMM_0
- * IMM_1
- * IMM_2
- * IMM_4
- * IMM_8
- * IMM_16
- * IMM_128
+ * RAM_READ
 
-DATA bus targets:
+Additionally, the values 0,1,2,4,8,16,32,18 can be directly configured
+as a source on the DATA bus.
+
+### DATA bus targets
+
  * REG_A
  * REG_B
  * REG_I
  * REG_J
- * PC*
+ * CNT_PC(*)
  * PUSH
- * SP
- * RAM*
+ * CNT_SP
+ * RAM_WRITE(*)
 
-`*` These values use the registers REG_I and REG_J to form an address.
+`(*)` The registers REG_I and REG_J form the address.
 
-
-
-### Memory
-
-There are two types of memory: ROM and RAM.
-All memory is byte-based and accessed using a 16-bit address.
-
-The address for the ROM is the output of CNT_PC, and can be loaded
-from the registers REG_I, REG_J.
-
-The address for the RAM is the output of the registers REG_I and REG_J.
-
-This way, the t3lc can address up to 64K of ROM and RAM.
+See below for a description of what each source/target does.
+Some combinations of source and target have a special meaning:
+`REG_A -> REG_A` is `HALT`
+`REG_B -> REG_B` is `CLEAR_ACC`
+`REG_I -> REG_I` is `PERI0_WRITE`
+`REG_J -> REG_J` is `PERI1_WRITE`
+`TOS -> CNT_PC` is `BRANCH`
+`RAM -> RAM` is `POP`
 
 
 
-### Stack
 
-A stack is provided on the DATA bus. The stack size is 256 bytes.
-The stack has the following functions:
+## Registers
 
- * push
-   - read the value on the DATA bus, increment SP
- * pop
-   - write TOS on the DATA bus, decrement SP
- * write_sp
-   - Copy the value on the DATA bus to SP
- * tos
-   - write TOS on the DATA bus
+`REG_A`, `REG_B`, `REG_I`, `REG_J` can be configured as a
+source or a target on the DATA bus
+
+`REG_I` and `REG_J` form the RAM address when loading/storing,
+and the PC value when jumping.
+
+`REG_IMM` can only be configured as a source,
+bits 0,1,2,3 set the ALU operation,
+and when writing values consecutively the previous value
+is pushed onto the stack.
 
 
 
-### ALU
+## Program counter
+
+The 16-bit program counter `CNT_PC` is automatically incremented every clock cycle,
+and can be loaded from the registers `REG_I` and `REG_J`.
+It determines the ROM address that is beeing read as an instruction.
+
+
+
+## Stack
+
+The t3lc CPU has a 256-byte general-purpose stack.
+The 8-bit stack pointer `CNT_SP` is the current index into the stack and
+can be loaded from the registers REG_I and REG_J.
+
+It supports the following operations:
+ * PUSH
+   - copies the current value on the DATA bus to it's memory,
+     then increments `CNT_SP`(stack is a target on the DATA bus).
+ * POP
+   - The stack pointer is decremented
+ * TOS
+   - provides the current value on top of the stack on the DATA bus
+     (stack is a source on the DATA bus)
+ * LOAD_SP
+   - copies the current value on the DATA bus into CNT_PC
+     (stack is a target on the DATA bus).
+
+The stack can be also be PUSH'ed using successive writes to `REG_IMM`:
+When a value is written to `REG_IMM`, and the previous instruction was
+also a write to `REG_IMM`, then the current value of `REG_IMM` is pushed
+to the stack before a new value is loaded. This makes the
+
+
+
+## ROM
+
+The 8-bit ROM is used exclusively to fetch instructions.
+
+The 16-bit ROM address is provided by `CNT_PC`, which can be loaded
+from the DATA bus or from REG_IMM for when branching.
+The ROM can't be read directly, only via 7-bit immediate values.
+
+
+
+## RAM
+
+The 8-bit RAM can only be used to store or load data,
+no execution of instructions from RAM is possible directly.
+
+The 16-bit address is provided by the registers `REG_I` and `REG_J`.
+
+
+
+## ALU
 
 The 8-bit ALU can be configured to be a source on the DATA bus.
 It provides the result of OP(REG_A, REG_B),
 where OP is determined by bits 4,5,6 from REG_I.
 
-| Bits | Result
-| ---- | -----
-|  000 | REG_A + REG_B
-|  001 | REG_A & REG_B
-|  010 | REG_A | REG_B
-|  011 | !REG_A
-|  100 | REG_A << REG_B
-|  101 | REG_A * REG_B
-|  110 | REG_A > REG_B
-|  111 | REG_A == REG_B
-
+| Bits | Name    | Result
+| ---- | ------- | ------
+| 0000 |     ADD | REG_A + REG_B
+| 0001 |     SUB | REG_A - REG_B
+| 0010 |     MUL | REG_A * REG_B
+| 0011 |     SUB | !REG_A
+| 0100 |     AND | REG_A << REG_B
+| 0101 |      OR | REG_A * REG_B
+| 0110 |     XOR | REG_A > REG_B
+| 0111 |     NOT | REG_A == REG_B
+| 1000 | LSHIFT1 | REG_A + REG_B
+| 1001 |  LSHIFT | REG_A & REG_B
+| 1010 | RSHIFT1 | REG_A | REG_B
+| 1011 |  RSHIFT | !REG_A
+| 1100 |     NEG | REG_A << REG_B
+| 1101 |      GT | REG_A * REG_B
+| 1110 |      EQ | REG_A > REG_B
+| 1111 |     ACC | REG_A == REG_B
 
 
 ### Instructions
