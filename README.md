@@ -14,6 +14,13 @@ The t3lc is a simple transport-triggered CPU.
 
 
 
+## WIP Warning
+
+Currently this project moves quickly and breaks a lot.
+Documentation might not always be up-to-date.
+
+
+
 ## Implementation
 
 The t3lc is implemented as a LogiSim evolution circuit, in the
