@@ -27,7 +27,7 @@ function PUSH()
 end
 
 -- decrease the SP
-function PUSH()
+function POP()
 	output(SPECIAL_OPS.POP)
 end
 
@@ -36,23 +36,23 @@ function CLEAR_ACC()
 	output(SPECIAL_OPS.CLEAR_ACC)
 end
 
--- if TOS is 0, jump to REGF_AB
+-- if TOS is 0, jump to REGF_IJ
 function BRANCH()
 	output(SPECIAL_OPS.BRANCH)
 end
 
--- jump to REGF_AB
+-- jump to REGF_IJ
 function JUMP()
 	output(SPECIAL_OPS.JUMP)
 end
 
--- write the index for the first register file from REG_IMM
-function INDEX_A()
-	output(SPECIAL_OPS.REGF_A_I)
+-- write the REGF_I address from REG_IMM
+function REGF_I_ADDR()
+	output(SPECIAL_OPS.REGF_I_ADDR)
 end
 
--- write the index for the first second file from REG_IMM
-function INDEX_B()
-	output(SPECIAL_OPS.REGF_B_I)
+-- write the REGF_J address from REG_IMM
+function REGF_J_ADDR()
+	output(SPECIAL_OPS.REGF_J_ADDR)
 end
 

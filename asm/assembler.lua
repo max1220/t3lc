@@ -13,13 +13,10 @@ cur_i = 0
 
 -- functions for adding generated op-codes
 function output(v)
+	assert(ops[cur_i]==nil)
 	ops[cur_i] = v
 	cur_i = cur_i + 1
 	max_i = math.max(cur_i, max_i)
-end
-function output_at(i, v)
-	ops[i] = v
-	max_i = math.max(i+1, max_i)
 end
 
 -- utillity functions for scripts

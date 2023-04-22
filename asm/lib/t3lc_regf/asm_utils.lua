@@ -3,26 +3,6 @@
 -- index the specified register file from REG_IMM, optionally load REG_IMM first
 function INDEX(regf, imm)
 	assert_regf(regf)
-	if imm then
-		REG_IMM(imm)
-	end
-	if regf == "REGF_A" then
-		INDEX_A()
-	elseif regf == "REGF_B" then
-		INDEX_B()
-	end
-end
-
--- index both register files(can save a single instruction)
-function DINDEX(imm_a, imm_b)
-	if imm_a==imm_b then
-		REG_IMM(imm_a)
-		INDEX_A()
-		INDEX_B()
-	else
-		INDEX("REGF_A", imm_a)
-		INDEX("REGF_B", imm_b)
-	end
 end
 
 -- source_val is a DATA_SOURCE, index for register file, or immediate value
@@ -94,6 +74,9 @@ function STR(str)
 		IMM(char)
 	end
 	IMM(#str)
+end
+function STRR(str)
+	return STR(str:reverse())
 end
 
 -- push from a source on the DATA bus

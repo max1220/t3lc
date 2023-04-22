@@ -3,8 +3,8 @@
 -- sources of the DATA bus
 -- bits 0,1,2,3 from ROM_VALUE(op-code)
 DATA_SOURCES = {
-	REGF_A=0, REGF_B=1, TOS=2, ALU_AB=3,
-	ALU_SD=4, PERI0=5, PERI1=6, RAM=7,
+	REGF_A=0, REGF_B=1, REGF_I=2, REGF_J=3,
+	TOS=4, ALU_AB=5, ALU_SD=6, RAM=7,
 	REG_IMM=8, IMM_0=9, IMM_1=10, IMM_2=11,
 	IMM_4=12, IMM_8=13, IMM_16=14, IMM_128=15
 }
@@ -16,8 +16,8 @@ DATA_SOURCES_IMM = {
 -- targets of the DATA bus
 -- bits 4,5,6 from ROM_VALUE(op-code)
 DATA_TARGETS = {
-	REGF_A=0, REGF_B=1, TOS=2, REG_I=3,
-	REG_J=4, PERI0=5, PERI1=6, RAM=7
+	REGF_A=0, REGF_B=1, REGF_I=2, REGF_J=3,
+	TOS=4, REGF_A_ADDR=5, REGF_B_ADDR=6, RAM=7
 }
 
 -- ALU operations
@@ -38,8 +38,8 @@ SPECIAL_OPS = {
 	CLEAR_ACC = 0x33,
 	BRANCH = 0x44,
 	JUMP = 0x55,
-	REGF_A_I = 0x66,
-	REGF_B_I = 0x77
+	REGF_I_ADDR = 0x66,
+	REGF_J_ADDR = 0x77
 }
 
 
