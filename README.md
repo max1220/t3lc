@@ -2,15 +2,42 @@
 
 *Tiny Transport Triggered Logic CPU(t3lc)*
 
-The t3lc is a simple transport-triggered CPU.
- * 8-bit instructions(4-bit source + 3-bit target or 7-bit immediate value)
- * 4 8-bit registers + 7-bit last immediate-value register
- * 8-bit bi-directional DATA bus
- * 8-bit ALU with 8-bit ACC register(15 ops + read ACC)
- * 256-byte stack
- * 2 peripheral write ports
+The t3lc is a simple transport-triggered CPU,
+with an 8-bit `DATA` bus.
 
-![LogiSim circuit](doc/t3lc.svg)
+It comes in 3 variants.
+
+For a more detailed description, see [T3LC.md](doc/T3LC.md).
+
+## t3lc_mini
+
+ - read/write bus are two instructions
+ - 6 8-bit registers(3 general-purpose, 3 special)
+ - 256bytes of ROM
+ - 256bytes of RAM
+ - 8-bit ALU
+
+
+
+## t3lc_medium
+
+ - read/write are one instruction
+ - 4 register files(768-byte register memory)
+ - 256-byte stack
+ - 16K of ROM
+ - 16K of RAM
+ - 8-bit ALU
+
+## t3lc_huge
+
+ - read/write are two instructions
+ - 4 register files(1024-byte register memory)
+ - two 256-byte stacks
+ - 8-bit ALU and 16-bit ALUs
+ - 16M of IROM
+ - 16M of DROM
+ - 16M of RAM
+ - 3 peripheral ports(could be used as 3*16M RAM)
 
 
 
@@ -40,6 +67,6 @@ See [ASSEMBLER.md](doc/ASSEMBLER.md)
 
 ## Emulator
 
-The emulator can run compiled t3lc programs.
+The emulator can run compiled t3lc programs(ROM images).
 
 See [EMULATOR.md](doc/EMULATOR.md)

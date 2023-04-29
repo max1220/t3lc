@@ -2,202 +2,145 @@
 
 *Tiny Transport Triggered Logic CPU(t3lc)*
 
-The t3lc is a simple transport-triggered CPU.
- * 8-bit instructions(4-bit source + 3-bit target or 7-bit immediate value)
- * 4 8-bit registers + 7-bit last immediate-value register
- * 8-bit bi-directional DATA bus
- * 8-bit ALU with 8-bit ACC register(15 ops + read ACC)
- * 256-byte stack
- * 2 peripheral write ports
+The t3lc is a set of 3 simple transport-triggered CPU designs
+implemented using the [Digital](https://github.com/hneemann/Digital) logic simulator.
+
+All variants share some similarities: same ALU implementation,
+separate instruction/data storage(harvard architecture),
+and use single 8-bit `DATA` bus that is controlled via an 8-bit `OP` read from ROM.
 
 
 
-## DATA Bus
+## t3lc_mini:
 
-Since this is a TTA-like design, the DATA bus is the key to understanding
-the operation of the t3lc CPU.
+![t3lc_mini Digital circuit](img/t3lc_mini.svg)
 
-Each clock cycle, the source and target connections to the DATA bus are
-enabled/disabled according to the current instruction.
-
-Only a single source and a single target can be enabled at a time.
-
-
-
-### DATA bus sources
-
- * REG_A
- * REG_B
- * REG_I
- * REG_J
- * TOS
- * ALU
- * REG_IMM
- * RAM_READ
-
-Additionally, the values 0,1,2,4,8,16,32,18 can be directly configured
-as a source on the DATA bus.
-
-### DATA bus targets
-
- * REG_A
- * REG_B
- * REG_I
- * REG_J
- * CNT_PC(*)
- * PUSH
- * CNT_SP
- * RAM_WRITE(*)
-
-`(*)` The registers REG_I and REG_J form the address.
-
-See below for a description of what each source/target does.
-Some combinations of source and target have a special meaning:
-`REG_A -> REG_A` is `HALT`
-`REG_B -> REG_B` is `CLEAR_ACC`
-`REG_I -> REG_I` is `PERI0_WRITE`
-`REG_J -> REG_J` is `PERI1_WRITE`
-`TOS -> CNT_PC` is `BRANCH`
-`RAM -> RAM` is `POP`
+ - All busses and registers etc. are 8-bit
+ - "registered" DATA bus(read and write in two instructions)
+ - OP is 4-bit op-code, optional 4-bit op-imm value
+ - 3 general-purpose 8-bit registers: `REG_A`, `REG_B`, `REG_C`
+ - 8-bit shift register: `SREG_IMM`
+   * two 4 bit-stages shifted from op-imm on read
+ - 8-bit Address/branch register: `REG_ADDR`
+   * address for DRAM read/write or DROM read
+   * target for jumping/branching
+ - 8-bit ALU control register: `REG_ALU`
+   * 2-bit ALU source: `REG_A`, `REG_B`, `REG_C`, `SREG_IMM`
+   * 2-bit ALU target: `REG_A`, `REG_B`, `REG_C`, `SREG_IMM`
+   * 4-bit ALU op
+ - 8-bit program counter: `CNT_PC`
+   * is ROM address(256-byte instruction ROM)
+   * can only be loaded from `REG_ADDR`
 
 
 
+## t3lc_medium
 
-## Registers
+(TODO: Currently only exists in LogiSim evolution circuit)
 
-`REG_A`, `REG_B`, `REG_I`, `REG_J` can be configured as a
-source or a target on the DATA bus
-
-`REG_I` and `REG_J` form the RAM address when loading/storing,
-and the PC value when jumping.
-
-`REG_IMM` can only be configured as a source,
-bits 0,1,2,3 set the ALU operation,
-and when writing values consecutively the previous value
-is pushed onto the stack.
-
-
-
-## Program counter
-
-The 16-bit program counter `CNT_PC` is automatically incremented every clock cycle,
-and can be loaded from the registers `REG_I` and `REG_J`.
-It determines the ROM address that is beeing read as an instruction.
-
-
-
-## Stack
-
-The t3lc CPU has a 256-byte general-purpose stack.
-The 8-bit stack pointer `CNT_SP` is the current index into the stack and
-can be loaded from the registers REG_I and REG_J.
-
-It supports the following operations:
- * PUSH
-   - copies the current value on the DATA bus to it's memory,
-     then increments `CNT_SP`(stack is a target on the DATA bus).
- * POP
-   - The stack pointer is decremented
- * TOS
-   - provides the current value on top of the stack on the DATA bus
-     (stack is a source on the DATA bus)
- * LOAD_SP
-   - copies the current value on the DATA bus into CNT_PC
-     (stack is a target on the DATA bus).
-
-The stack can be also be PUSH'ed using successive writes to `REG_IMM`:
-When a value is written to `REG_IMM`, and the previous instruction was
-also a write to `REG_IMM`, then the current value of `REG_IMM` is pushed
-to the stack before a new value is loaded. This makes the
+ - 8-bit registers with 16-bit address
+ - "unregistered" `DATA` bus(read and write in one instruction)
+ - OP is 7-bit op-imm value or 7-bit op-code
+   * op-code is split into 4-bit source and 3-bit target
+ - 2x general-purpose 8-bit 256-value register files: `REGF_A`, `REGF_B`
+   * indexed from `DATA` bus
+ - 2x general-purpose 8-bit 128-value register files: `REGF_I`, `REGF_J`
+   * indexed from `REG_IMM`
+ - 7-bit register loadeded from op-imm: `REG_IMM`
+ - general-purpose 256-byte stack
+ - ALU is controlled by `REG_IMM`
+   * 4-bit ALU op
+   * 3-bit ALU input select:
+     - `REG_AF|REGF_B`, `REGF_B|REGF_A`, `REGF_I|REGF_J`, `REGF_J|REGF_I`
+     - `CNT_PC_LO|CNT_PC_LO`, `CNT_PC_HI|CNT_PC_HI`, `TOS|REGF_A`, `REGF_A|TOS`
+ - 16-bit program counter: `CNT_PC`
+   * loaded from `REG_I` and `REG_J`
 
 
 
-## ROM
+## t3lc_huge
 
-The 8-bit ROM is used exclusively to fetch instructions.
+![t3lc_huge Digital circuit](img/t3lc_huge.svg)
 
-The 16-bit ROM address is provided by `CNT_PC`, which can be loaded
-from the DATA bus or from REG_IMM for when branching.
-The ROM can't be read directly, only via 7-bit immediate values.
-
-
-
-## RAM
-
-The 8-bit RAM can only be used to store or load data,
-no execution of instructions from RAM is possible directly.
-
-The 16-bit address is provided by the registers `REG_I` and `REG_J`.
+ - "registered" DATA bus(read and write in two instructions)
+ - OP is 7-bit op-imm value or 7-bit op-code
+   * op-code is split into 5-bit op source/target and 2-bit op-group(special0, read, write, special1).
+ - 4x general-purpose 8-bit 256-value register files: `REGF_A`, `REGF_B`, `REGF_I`, `REGF_J`
+   * indexed from `DATA` bus
+ - 21-bit shift-register loaded from op-imm: `SREG_IMM`
+ - 2x general-purpose 256-byte stack
+ - ALUs are controlled by `SREG_IMM`(21-bits)
+   * 8-bit ALU
+     - 4-bit ALU op
+     - two 3-bit ALU operand selects
+       * `REGF_A`, `REGF_B`, `REGF_I`, `REGF_J`
+       * `STACK_X_TOS`, `STACK_Y_TOS`, `ALU_IMM`, `REGF_J`
+     - 8-bit ALU immediate value `ALU_IMM`
+   * 16-bit ALU
+     - 4-bit ALU op
+     - two 2-bit operand select
+       * `REGF_AB`, `REGF_IJ`, `STACK_XY`, `CNT_PC`
+     - result is latched by special instruction, available as two 8-bit values
+ - flow control register: `REG_JUMP_CTRL`
+   * 2-bit address select: `JUMP_IMM`, `REGF_AB`, `REGF_IJ`, `STACK_XY_TOS`
+   * 6-bit address immediate: `JUMP_IMM`
+ - 16-bit program counter: `CNT_PC`
+   * loaded from address selected in flow control register
+ - interrupt pin
+   * when high with clock, load `JUMP_IMM` into `CNT_PC`
 
 
 
 ## ALU
 
-The 8-bit ALU can be configured to be a source on the DATA bus.
-It provides the result of OP(REG_A, REG_B),
-where OP is determined by bits 4,5,6 from REG_I.
+![8-bit ALU LogiSim circuit](img/alu_8.svg)
 
-| Bits | Name    | Result
-| ---- | ------- | ------
-| 0000 |     ADD | REG_A + REG_B
-| 0001 |     SUB | REG_A - REG_B
-| 0010 |     MUL | REG_A * REG_B
-| 0011 |     SUB | !REG_A
-| 0100 |     AND | REG_A << REG_B
-| 0101 |      OR | REG_A * REG_B
-| 0110 |     XOR | REG_A > REG_B
-| 0111 |     NOT | REG_A == REG_B
-| 1000 | LSHIFT1 | REG_A + REG_B
-| 1001 |  LSHIFT | REG_A & REG_B
-| 1010 | RSHIFT1 | REG_A | REG_B
-| 1011 |  RSHIFT | !REG_A
-| 1100 |     NEG | REG_A << REG_B
-| 1101 |      GT | REG_A * REG_B
-| 1110 |      EQ | REG_A > REG_B
-| 1111 |     ACC | REG_A == REG_B
+The ALU is shared between the variants, and is available in two
+versions: 8-bit and 16-bit.
+
+It's output is simply the result of the operation applied to the
+inputs A and B. All operations are unsigned.
+
+Operations marked with a (*) also output a carry value.
+
+| ALU op | Name    | Result
+| ------ | ------- | ------
+|   0000 |    ADD* | RES = A + B
+|   0001 |    SUB* | RES = A - B
+|   0010 |    MUL* | RES = A * B
+|   0011 |    DIV* | RES = A / B
+|   0100 |     AND | RES = A & B
+|   0101 |      OR | RES = A | B
+|   0110 |     XOR | RES = A ^ B
+|   0111 |     NOT | RES = !A
+|   1000 | LSHIFT1 | RES = A<<1
+|   1001 |  LSHIFT | RES = A<<B
+|   1010 | RSHIFT1 | RES = A>>1
+|   1011 |  RSHIFT | RES = A>>B
+|   1100 |     NEG | RES = -A
+|   1101 |      GT | RES = A>B
+|   1110 |      EQ | RES = A==B
+|   1111 |       A | RES = A
 
 
-### Instructions
 
-The instructions are best understood as configuring the DATA bus.
+## Stack
 
-Each instruction is 8 bits.
+![stack Digital circuit](img/stack.svg)
 
-The first 4 bits(bits 0-3) determine the target of the DATA bus:
+ - 256*8-bit values
+ - supports 6 operations
+   * increment/decrement SP(push/pop)
+   * read/write TOS
+   * read/write SP
 
-| Bits | Name
-| ---- | -----
-| 0000 | REG_A
-| 0001 | REG_B
-| 0010 | REG_I
-| 0011 | REG_J
-| 0100 | POP
-| 0101 | TOS
-| 0110 | ALU
-| 0111 | RAM
-| 1000 | REG_IMM
-| 1001 | IMM_0
-| 1010 | IMM_1
-| 1011 | IMM_2
-| 1100 | IMM_4
-| 1101 | IMM_8
-| 1110 | IMM_16
-| 1111 | IMM_128
 
-The next 3 bits(bits 4-6) determine the source of the DATA bus:
 
-| Bits | Name
-| ---- | -----
-|  000 | REG_A
-|  001 | REG_B
-|  010 | REG_I
-|  011 | REG_J
-|  100 | PC
-|  101 | PUSH
-|  110 | SP
-|  111 | RAM
+## Register file
 
-The last bit(bit 7) is special:
+![register_file Digital circuit](img/register_file.svg)
 
-If set, the DATA bus is not used.
-Instead, the lower 6 bits are loaded into the REG_IMM register.
+ - 256*8-bit values
+ - supports 4 operations
+   * read/write memory
+   * read/write address

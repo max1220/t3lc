@@ -2,10 +2,14 @@ local bit = require("bit")
 require("asm.lib.t3lc_header")
 
 function new_state(rom_data)
-	state.REG_A = 0x00
-	state.REG_B = 0x00
-	state.REG_I = 0x00
-	state.REG_J = 0x00
+	state.REGF_A_ADDR = 0x00
+	state.REGF_B_ADDR = 0x00
+	state.REGF_I_ADDR = 0x00
+	state.REGF_J_ADDR = 0x00
+	state.REGF_A = {}
+	state.REGF_B = {}
+	state.REGF_I = {}
+	state.REGF_J = {}
 	state.REG_IMM = 0x00
 	state.REG_ACC = 0x00
 	state.CNT_PC = 0x0000
@@ -18,6 +22,32 @@ function new_state(rom_data)
 end
 state = new_state(rom_data)
 
+
+
+function regf_read(regf)
+	if regf == "REGF_A" then
+		return state.REGF_A[state.REGF_A_ADDR]
+	elseif regf == "REGF_B" then
+		return state.REGF_B[state.REGF_B_ADDR]
+	elseif regf == "REGF_I" then
+		return state.REGF_I[state.REG_IMM]
+	elseif regf == "REGF_J" then
+		return state.REGF_J[state.REG_IMM]
+	else
+		error()
+	end
+end
+function regf_write(regf, value)
+	if regf == "REGF_A" then
+		state.REGF_A[state.REGF_A_ADDR] = value
+	elseif regf == "REGF_B" then
+		state.REGF_B[state.REGF_B_ADDR] = value
+	elseif regf == "REGF_I" then
+		state.REGF_I[state.REG_IMM] = value
+	elseif regf == "REGF_J" then
+		state.REGF_J[state.REG_IMM] = value
+	else
+end
 function rom_read(addr)
 	return state.rom_data:byte(addr+1, addr+1)
 end
@@ -28,6 +58,14 @@ end
 function ram_write(value)
 	local addr = state.REG_I + state.REG_J*256
 	self.ram[addr] = value
+end
+function incr_sp()
+end
+function decr_sp()
+end
+function tos_read()
+end
+function tos_write(value)
 end
 function push(value)
 	state.stack[state.CNT_SP] = value
@@ -93,22 +131,6 @@ local function gen_imm(op_code)
 		end
 		state.REG_IMM = bit.band(op_code, 0x7f)
 		state.last_imm = true
-	end
-end
-local function op_name(op_code)
-	if bit.band(op_code, 0x80) then
-		return ("IMM %.2x"):format(bit.band(op_code, 0x7f))
-	else
-		local source = bit.band(op_code)
-		local target = bit.band(op_code, 0x70) / 16
-		local source_name, target_name
-		for iname, isource in pairs(DATA_SOURCES) do
-			if source == isource then source_name = iname end
-		end
-		for iname, itarget in pairs(DATA_SOURCES) do
-			if target == itarget then target_name = iname end
-		end
-		return "OP "..source_name.." "..target_name
 	end
 end
 local function add_op(op_code, name, cb)
