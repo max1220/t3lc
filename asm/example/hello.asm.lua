@@ -1,74 +1,63 @@
-require("lib.t3lc_regf.header")
-require("lib.t3lc_regf.asm_base")
+require("asm.lib.t3lc_regf.header")
+require("asm.lib.t3lc_regf.asm_base")
+require("utils.lua")
 
 -- push the string onto the stack
-local function immstr(str)
+local function immstr(str)0
 	for i=1, #str do
 		REG_IMM(str:sub(i,i))
 	end
 	REG_IMM(#str)
 end
-
-local function source_or_imm(source_val)
-	if DATA_SOURCES[source_val] then
-		return source_val
-	else
-		return "REG_IMM", source_val
-	end
-end
-
-local function op_with_imm(imm, target)
-	IMM(imm)
-	OP("REG_IMM", target)
-end
-
-local function regf_ab(index_or_source, target)
-	local source,imm = source_or_imm(index_or_source)
-	if source then
-		OP(source, target)
-	else
-		op_with_imm(source, target)
-	end
-end
-function REGF_A(index_or_source)
-	regf_ab(index_or_source, "REGF_A_ADDR")
-end
-function REGF_B(index_or_source)
-	regf_ab(index_or_source, "REGF_B_ADDR")
-end
-function REGF_I(index)
-	IMM(index)
-	REGF_I_ADDR()
-end
-function REGF_J(index)
-	IMM(index)
-	REGF_I_ADDR()
-end
-
-
+function lo(addr) return addr % 256 end
+function hi(addr) return (addr-lo(addr))/256 end
 
 -- code starts by pusing hello world onto the stack
 immstr(("Hello World!\0"):reverse())
 
--- note current position(jump point for loop)
-local loop_pos = cur_i
+-- initialize REGF_A[0] and REGF_B[0] to 0
+INDEX_IMM_OP("REGF_A", 0, "IMM_0")
+INDEX_IMM_OP("REGF_B", 0, "IMM_0")
+
+-- set loop end address in REGF_I[1] and REGF_J[1]
+local loop_end = 0x0040
+INDEX_IMM_OP("REGF_I", 1, lo(loop_start))
+INDEX_IMM_OP("REGF_J", 1, hi(loop_start))
+
+-- set loop base address in REGF_I[0] and REGF_J[0]
+local loop_base = 0x0020
+INDEX_IMM_OP("REGF_I", 0, lo(loop_base))
+INDEX_IMM_OP("REGF_J", 0, hi(loop_base))
+
+-- jump to loop base
+JUMP()
+
+-- beginning of output loop
+cur_i = loop_base
 
 	-- get current stack value
+	INDEX_IMM_OP("REGF_A", 0, "TOS")
 	OP("TOS", "REGF_A")
 	-- load 0 into REGF_B
 	OP("IMM_0", "REGF_B")
 
-	-- address for jump from immediate
-	OP("IMM_128", "REGF_I")
-	OP("IMM_0", "REGF_J")
-
-	IMM(ALU_OPS.GT)
-	OP("ALU_AB", "TOS")
+	-- branch to REGF_I[0] REGF_J[0] if REGF_A and REGF_B are equal
+	IMM(ALU_OPS.EQ)
+	OP("TOS", "ALU_AB")
+	INDEX_REGF("REGF_I", 0)
+	INDEX_REGF("REGF_J", 0)
 	BRANCH()
 
+	-- not equal to 0, write original value back
+	OP("REGF_A", "TOS")
 
+	-- move stack index
+	POP()
 
-
+	-- jump to loop start
+	INDEX_IMM_OP("REGF_I", 1, lo(loop_pos))
+	INDEX_IMM_OP("REGF_J", 1, hi(loop_pos))
+	JUMP()
 
 -- end of loop
-cur_i = 128
+cur_i = loop_end
