@@ -13,8 +13,9 @@ For a more detailed description, see [T3LC.md](doc/T3LC.md).
 
  - read/write bus are two instructions
  - 6 8-bit registers(3 general-purpose, 3 special)
- - 256bytes of ROM
- - 256bytes of RAM
+ - 256bytes of IROM
+ - 256bytes of DROM
+ - 256bytes of DRAM
  - 8-bit ALU
 
 
@@ -24,8 +25,8 @@ For a more detailed description, see [T3LC.md](doc/T3LC.md).
  - read/write are one instruction
  - 4 register files(768-byte register memory)
  - 256-byte stack
- - 16K of ROM
- - 16K of RAM
+ - 16K of IROM
+ - 16K of DRAM
  - 8-bit ALU
 
 ## t3lc_huge
@@ -36,7 +37,7 @@ For a more detailed description, see [T3LC.md](doc/T3LC.md).
  - 8-bit ALU and 16-bit ALUs
  - 16M of IROM
  - 16M of DROM
- - 16M of RAM
+ - 16M of DRAM
  - 3 peripheral ports(could be used as 3*16M RAM)
 
 

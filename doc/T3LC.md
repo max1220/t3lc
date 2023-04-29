@@ -29,7 +29,7 @@ and use single 8-bit `DATA` bus that is controlled via an 8-bit `OP` read from R
    * 2-bit ALU target: `REG_A`, `REG_B`, `REG_C`, `SREG_IMM`
    * 4-bit ALU op
  - 8-bit program counter: `CNT_PC`
-   * is ROM address(256-byte instruction ROM)
+   * is IROM address(256-byte instruction ROM)
    * can only be loaded from `REG_ADDR`
 
 
